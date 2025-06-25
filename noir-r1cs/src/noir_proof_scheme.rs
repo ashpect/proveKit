@@ -14,6 +14,7 @@ use {
     noirc_abi::InputMap,
     noirc_artifacts::program::ProgramArtifact,
     rand::{rng, Rng as _},
+    // rand_chacha::{ChaCha8Rng, rand_core::SeedableRng},
     serde::{Deserialize, Serialize},
     std::{fs::File, path::Path},
     tracing::{info, instrument},
@@ -47,6 +48,7 @@ impl NoirProofScheme {
     pub fn from_program(program: ProgramArtifact) -> Result<Self> {
         info!("Program noir version: {}", program.noir_version);
         info!("Program entry point: fn main{};", PrintAbi(&program.abi));
+        info!("Printing {}", &program.abi.parameters[0].name);
         ensure!(
             program.bytecode.functions.len() == 1,
             "Program must have one entry point."
@@ -121,6 +123,10 @@ impl NoirProofScheme {
             &mut foreign_call_executor,
         )?;
 
+        // info!("Witness stack: {:?}", witness_stack);
+        // info!("Witness stack pop: {:?}", witness_stack.pop());
+        info!("Witness stack size: {:?}", witness_stack.length());
+
         Ok(witness_stack
             .pop()
             .context("Missing witness results")?
@@ -139,6 +145,8 @@ impl NoirProofScheme {
             &mut transcript,
         );
         let witness = fill_witness(partial_witness).context("while filling witness")?;
+
+        // info!("Witness Vector Final Witness: {:?}", witness);
 
         // Verify witness (redudant with solve)
         #[cfg(test)]
@@ -180,6 +188,26 @@ fn fill_witness(witness: Vec<Option<FieldElement>>) -> Result<Vec<FieldElement>>
     info!("Filled witness with {count} random values");
     Ok(witness)
 }
+
+// Complete a partial witness with random values.
+// #[instrument(skip_all, fields(size = witness.len()))]
+// fn fill_witness(witness: Vec<Option<FieldElement>>) -> Result<Vec<FieldElement>> {
+//     // Use ChaCha8 RNG for lightweight post-quantum secure random number generation
+//     let mut rng = ChaCha8Rng::from_entropy();
+//     let mut count = 0;
+//     let witness = witness
+//         .iter()
+//         .map(|f| {
+//             f.unwrap_or_else(|| {
+//                 count += 1;
+//                 // Sample from the full range of u128 to ensure good distribution
+//                 FieldElement::from(rng.gen::<u128>())
+//             })
+//         })
+//         .collect::<Vec<_>>();
+//     info!("Filled witness with {count} random values using ChaCha8 RNG");
+//     Ok(witness)
+// }
 
 #[cfg(test)]
 mod tests {

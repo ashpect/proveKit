@@ -18,6 +18,7 @@ mod skyscraper;
 mod sparse_matrix;
 pub mod utils;
 mod whir_r1cs;
+mod hashops;
 
 pub use {
     crate::{
