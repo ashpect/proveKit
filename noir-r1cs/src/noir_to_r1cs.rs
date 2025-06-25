@@ -8,8 +8,10 @@ use {
         rom::add_rom_checking,
         serde_ark,
         utils::noir_to_native,
+        hashops::add_blake2s_constraints,
         FieldElement, NoirElement, R1CS,
     },
+    tracing::info,
     acir::{
         circuit::{
             opcodes::{
@@ -248,6 +250,42 @@ impl NoirToR1CSCompiler {
 
         for opcode in &circuit.opcodes {
             match opcode {
+                Opcode::AssertZero(_) => info!("opcode: AssertZero"),
+                Opcode::BrilligCall { .. } => info!("opcode: BrilligCall"),
+                Opcode::MemoryInit { .. } => info!("opcode: MemoryInit"),
+                Opcode::MemoryOp { .. } => info!("opcode: MemoryOp"),
+                Opcode::Call { .. } => info!("opcode: Call"),
+                Opcode::BlackBoxFuncCall(blackbox) => {
+                    match blackbox {
+                        BlackBoxFuncCall::AES128Encrypt { .. } => info!("opcode: BlackBoxFuncCall::AES128Encrypt"),
+                        BlackBoxFuncCall::AND { .. } => info!("opcode: BlackBoxFuncCall::AND"),
+                        BlackBoxFuncCall::XOR { .. } => info!("opcode: BlackBoxFuncCall::XOR"),
+                        BlackBoxFuncCall::RANGE { .. } => info!("opcode: BlackBoxFuncCall::RANGE"),
+                        BlackBoxFuncCall::Blake2s { .. } => info!("opcode: BlackBoxFuncCall::Blake2s"),
+                        BlackBoxFuncCall::Blake3 { .. } => info!("opcode: BlackBoxFuncCall::Blake3"),
+                        BlackBoxFuncCall::EcdsaSecp256k1 { .. } => info!("opcode: BlackBoxFuncCall::EcdsaSecp256k1"),
+                        BlackBoxFuncCall::EcdsaSecp256r1 { .. } => info!("opcode: BlackBoxFuncCall::EcdsaSecp256r1"),
+                        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
+                            info!("opcode: BlackBoxFuncCall::MultiScalarMul");
+                            info!("  points: {:?}", points);
+                            info!("  scalars: {:?}", scalars);
+                            info!("  outputs: {:?}", outputs);
+                        },
+                        BlackBoxFuncCall::EmbeddedCurveAdd { .. } => info!("opcode: BlackBoxFuncCall::EmbeddedCurveAdd"),
+                        BlackBoxFuncCall::Keccakf1600 { .. } => info!("opcode: BlackBoxFuncCall::Keccakf1600"),
+                        BlackBoxFuncCall::RecursiveAggregation { .. } => info!("opcode: BlackBoxFuncCall::RecursiveAggregation"),
+                        BlackBoxFuncCall::BigIntAdd { .. } => info!("opcode: BlackBoxFuncCall::BigIntAdd"),
+                        BlackBoxFuncCall::BigIntSub { .. } => info!("opcode: BlackBoxFuncCall::BigIntSub"),
+                        BlackBoxFuncCall::BigIntMul { .. } => info!("opcode: BlackBoxFuncCall::BigIntMul"),
+                        BlackBoxFuncCall::BigIntDiv { .. } => info!("opcode: BlackBoxFuncCall::BigIntDiv"),
+                        BlackBoxFuncCall::BigIntFromLeBytes { .. } => info!("opcode: BlackBoxFuncCall::BigIntFromLeBytes"),
+                        BlackBoxFuncCall::BigIntToLeBytes { .. } => info!("opcode: BlackBoxFuncCall::BigIntToLeBytes"),
+                        BlackBoxFuncCall::Poseidon2Permutation { .. } => info!("opcode: BlackBoxFuncCall::Poseidon2Permutation"),
+                        BlackBoxFuncCall::Sha256Compression { .. } => info!("opcode: BlackBoxFuncCall::Sha256Compression"),
+                    }
+                }
+            }
+            match opcode {
                 Opcode::AssertZero(expr) => self.add_acir_assert_zero(expr),
 
                 // Brillig is only for witness generation and does not produce constraints.
@@ -333,6 +371,7 @@ impl NoirToR1CSCompiler {
                     BlackBoxFuncCall::RANGE {
                         input: function_input,
                     } => {
+                        info!("blackbox called");
                         let input = function_input.input();
                         let num_bits = function_input.num_bits();
                         let input_witness = match input {
@@ -357,11 +396,39 @@ impl NoirToR1CSCompiler {
                             .push(input_witness);
                     }
 
+                    BlackBoxFuncCall::Blake2s { inputs, outputs } => {
+                        // Convert inputs to r1cs witnesses or constants
+                        let mut input_bytes = Vec::new();
+                        
+                        for function_input in inputs.iter() {
+                            let input = function_input.input();
+                            // let num_bits = function_input.num_bits();
+                            // assert_eq!(num_bits, 8, "Blake2s inputs must be bytes");
+                            let input_witness = self.fetch_constant_or_r1cs_witness(input);
+                            input_bytes.push(input_witness);
+                        }
+
+                        // Convert outputs to r1cs witnesses
+                        let mut output_witnesses = Vec::new();
+                        for function_output in outputs.iter() {
+                            let output_witness = self.fetch_r1cs_witness_index(*function_output);
+                            output_witnesses.push(output_witness);
+                        }
+                        assert_eq!(output_witnesses.len(), 32, "Blake2s outputs must be 32 bytes");
+
+                        // Add the constraints for the Blake2s hash function
+                        // Not focusing onn batching or optimizations for noe
+                        // An approach could be to batch all the blackbox fucncalls and 
+                        // Then pararelly solve for all of them, adding constraints for each of them in batch.
+                        add_blake2s_constraints(self, input_bytes, output_witnesses);
+                    }
+
                     // Binary operations:
                     // The inputs and outputs will have already been solved for by the ACIR solver.
                     // Collect the R1CS witnesses indices so that we can later constrain them
                     // appropriately.
                     BlackBoxFuncCall::AND { lhs, rhs, output } => {
+                        info!("blackbox called");
                         and_ops.push((
                             self.fetch_constant_or_r1cs_witness(lhs.input()),
                             self.fetch_constant_or_r1cs_witness(rhs.input()),
@@ -369,6 +436,7 @@ impl NoirToR1CSCompiler {
                         ));
                     }
                     BlackBoxFuncCall::XOR { lhs, rhs, output } => {
+                        info!("blackbox called");
                         xor_ops.push((
                             self.fetch_constant_or_r1cs_witness(lhs.input()),
                             self.fetch_constant_or_r1cs_witness(rhs.input()),

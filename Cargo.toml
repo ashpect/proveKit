@@ -111,6 +111,7 @@ acir = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }
 noirc_abi = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }
 noirc_artifacts = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }
 bn254_blackbox_solver = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }
+acvm_blackbox_solver = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }
 nargo = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }
 nargo_toml = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }
 noirc_driver = { git = "https://github.com/noir-lang/noir", rev = "nightly-2025-05-28" }

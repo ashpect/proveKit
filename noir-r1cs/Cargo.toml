@@ -42,6 +42,7 @@ noirc_abi.workspace = true
 nargo.workspace = true
 noir_artifact_cli.workspace = true
 bn254_blackbox_solver.workspace = true
+acvm_blackbox_solver.workspace = true
 
 # WHIR
 whir.workspace = true
