@@ -81,7 +81,8 @@ impl Prove for Prover {
         )?;
 
         let acir_witness_idx_to_value_map = self.generate_witness(input_map)?;
-
+        let acir_public_inputs = self.program.as_ref().unwrap().functions[0].public_inputs().indices();
+        
         // Solve R1CS instance
         let witness_io = self.create_witness_io_pattern();
         let mut witness_merlin = witness_io.to_prover_state();
@@ -92,9 +93,10 @@ impl Prove for Prover {
         all_layers.extend(split_witness_builders.w2_layers.layers);
         let layered_witness_builders = LayeredWitnessBuilders { layers: all_layers };
 
-        let partial_witness = self.r1cs.as_ref().unwrap().solve_witness_vec(
+        let (partial_witness, acir_to_r1cs_public_map) = self.r1cs.as_ref().unwrap().solve_witness_vec(
             layered_witness_builders,
             acir_witness_idx_to_value_map,
+            &acir_public_inputs,
             &mut witness_merlin,
         );
         let witness = fill_witness(partial_witness).context("while filling witness")?;
