@@ -24,25 +24,25 @@ nargo compile
 Generate the Noir Proof Scheme:
 
 ```sh
-cargo run --release --bin provekit-cli prepare ./target/basic.json -o ./noir-proof-scheme.nps
+cargo run --release --bin provekit-cli prepare ./target/basic.json -p ./noir-provekit-prover.pkp -v ./noir-provekit-verifier.pkv
 ```
 
 Generate the Noir Proof using the input Toml:
 
 ```sh
-cargo run --release --bin provekit-cli prove ./noir-proof-scheme.nps ./Prover.toml -o ./noir-proof.np
+cargo run --release --bin provekit-cli prove ./noir-provekit-prover.pkp ./Prover.toml -o ./noir-proof.np
 ```
 
 Verify the Noir Proof:
 
 ```sh
-cargo run --release --bin provekit-cli verify ./noir-proof-scheme.nps ./noir-proof.np
+cargo run --release --bin provekit-cli verify ./noir-provekit-verifier.pkv ./noir-proof.np
 ```
 
 Generate inputs for Gnark circuit:
 
 ```sh
-cargo run --release --bin provekit-cli generate-gnark-inputs ./noir-proof-scheme.nps ./noir-proof.np
+cargo run --release --bin provekit-cli generate-gnark-inputs ./noir-provekit-prover.pkp ./noir-proof.np
 ```
 
 Recursively verify in a Gnark proof (reads the proof from `../ProveKit/prover/proof`):

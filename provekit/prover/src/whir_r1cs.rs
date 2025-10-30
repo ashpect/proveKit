@@ -1,6 +1,6 @@
 use {
     anyhow::{ensure, Result},
-    ark_ff::UniformRand,
+    ark_ff::{BigInt, PrimeField, UniformRand},
     ark_std::{One, Zero},
     provekit_common::{
         skyscraper::{SkyscraperMerkleConfig, SkyscraperSponge},
@@ -16,11 +16,12 @@ use {
         },
         FieldElement, IOPattern, WhirConfig, WhirR1CSProof, WhirR1CSScheme, R1CS,
     },
+    sha2::{Digest, Sha256},
     spongefish::{
         codecs::arkworks_algebra::{FieldToUnitSerialize, UnitToField},
         ProverState,
     },
-    tracing::{info, instrument, warn},
+    tracing::{field, info, instrument, warn},
     whir::{
         poly_utils::{evals::EvaluationsList, multilinear::MultilinearPoint},
         whir::{
@@ -33,12 +34,22 @@ use {
 };
 
 pub trait WhirR1CSProver {
-    fn prove(&self, r1cs: R1CS, witness: Vec<FieldElement>) -> Result<WhirR1CSProof>;
+    fn prove(
+        &self,
+        r1cs: R1CS,
+        witness: Vec<FieldElement>,
+        public_indices: Vec<usize>,
+    ) -> Result<WhirR1CSProof>;
 }
 
 impl WhirR1CSProver for WhirR1CSScheme {
     #[instrument(skip_all)]
-    fn prove(&self, r1cs: R1CS, witness: Vec<FieldElement>) -> Result<WhirR1CSProof> {
+    fn prove(
+        &self,
+        r1cs: R1CS,
+        witness: Vec<FieldElement>,
+        public_indices: Vec<usize>,
+    ) -> Result<WhirR1CSProof> {
         ensure!(
             witness.len() == r1cs.num_witnesses(),
             "Unexpected witness length for R1CS instance"
@@ -89,19 +100,29 @@ impl WhirR1CSProver for WhirR1CSScheme {
             self.m_0,
             &self.whir_for_hiding_spartan,
         );
-        drop(z);
 
         // Compute weights from R1CS instance
         let alphas = calculate_external_row_of_r1cs_matrices(alpha, r1cs);
-        let (statement, f_sums, g_sums) = create_combined_statement_over_two_polynomials::<3>(
+        let (mut statement, f_sums, g_sums) = create_combined_statement_over_two_polynomials::<3>(
             self.m,
             &commitment_to_witness,
-            masked_polynomial,
-            random_polynomial,
+            masked_polynomial.clone(),
+            random_polynomial.clone(),
             alphas,
         );
 
         let _ = merlin.hint::<(Vec<FieldElement>, Vec<FieldElement>)>(&(f_sums, g_sums));
+        // let public_inputs_hash = hash_public_values(public_indices, z);
+        let public_weight = get_public_weights(z, public_indices, &mut merlin, self.m);
+        let (public_f_sum, public_g_sum) = update_statement_with_public_weights(
+            &mut statement,
+            &commitment_to_witness,
+            masked_polynomial,
+            random_polynomial,
+            public_weight,
+        );
+
+        let _ = merlin.hint::<(FieldElement, FieldElement)>(&(public_f_sum, public_g_sum));
 
         // Compute WHIR weighted batch opening proof
         let (merlin, ..) =
@@ -473,6 +494,75 @@ fn create_combined_statement_over_two_polynomials<const N: usize>(
     }
 
     (statement, f_sums, g_sums)
+}
+
+fn update_statement_with_public_weights(
+    statement: &mut Statement<FieldElement>,
+    witness: &Witness<FieldElement, SkyscraperMerkleConfig>,
+    f_polynomial: EvaluationsList<FieldElement>,
+    g_polynomial: EvaluationsList<FieldElement>,
+    public_weights: Weights<FieldElement>,
+) -> (FieldElement, FieldElement) {
+    let f = public_weights.weighted_sum(&f_polynomial);
+    let g = public_weights.weighted_sum(&g_polynomial);
+    statement.add_constraint_in_front(public_weights, f + witness.batching_randomness * g);
+    (f, g)
+}
+
+fn get_public_weights(
+    witness: Vec<FieldElement>,
+    public_indices: Vec<usize>,
+    merlin: &mut ProverState<SkyscraperSponge, FieldElement>,
+    m: usize,
+) -> Weights<FieldElement> {
+    let domain_size = 1 << m;
+    let mut public_weights = vec![FieldElement::zero(); domain_size];
+
+    let public_input_indices_and_values: Vec<(usize, FieldElement)> = public_indices
+        .iter()
+        .map(|&idx| (idx, witness[idx]))
+        .collect();
+
+    let public_inputs_hash = hash_public_values(public_indices, witness);
+    let _ = merlin.add_scalars(&[public_inputs_hash]);
+
+    let mut x_buf = [FieldElement::zero()];
+    merlin
+        .fill_challenge_scalars(&mut x_buf)
+        .expect("Failed to get challenge from Merlin");
+    let x = x_buf[0];
+
+    let mut current_pow = x;
+    for (idx, _value) in public_input_indices_and_values.iter() {
+        public_weights[*idx] = current_pow;
+        current_pow *= x;
+    }
+
+    // TODO_ASH:
+    // Currently n doesn't make sense as we won't use geometric till, and are
+    // creating [0,x,0,x^2 and so on] and verifying that normally.
+    Weights::geometric(
+        x,
+        public_weights.len(),
+        EvaluationsList::new(public_weights),
+    )
+}
+
+fn hash_public_values(public_indices: Vec<usize>, witness: Vec<FieldElement>) -> FieldElement {
+    let mut hasher = Sha256::new();
+    for (_idx, value) in public_indices.iter().zip(witness.iter()) {
+        for limb in value.into_bigint().0.iter() {
+            hasher.update(&limb.to_le_bytes());
+        }
+    }
+    let result = hasher.finalize();
+
+    let limbs = result
+        .chunks_exact(8)
+        .map(|s| u64::from_le_bytes(s.try_into().unwrap()))
+        .collect::<Vec<_>>();
+
+    FieldElement::new(BigInt::new(limbs.try_into().unwrap()))
 }
 
 #[instrument(skip_all)]

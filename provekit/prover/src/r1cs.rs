@@ -20,7 +20,10 @@ pub trait R1CSSolver {
         acir_map: WitnessMap<NoirElement>,
         acir_public_inputs: &[u32],
         transcript: &mut ProverState<SkyscraperSponge, FieldElement>,
-    ) -> (Vec<Option<FieldElement>>, std::collections::HashMap<u32, usize>);
+    ) -> (
+        Vec<Option<FieldElement>>,
+        std::collections::HashMap<u32, usize>,
+    );
 
     #[cfg(test)]
     fn test_witness_satisfaction(&self, witness: &[FieldElement]) -> Result<()>;
@@ -54,22 +57,25 @@ impl R1CSSolver for R1CS {
         acir_map: WitnessMap<NoirElement>,
         acir_public_inputs: &[u32],
         transcript: &mut ProverState<SkyscraperSponge, FieldElement>,
-    ) -> (Vec<Option<FieldElement>>, std::collections::HashMap<u32, usize>) {
+    ) -> (
+        Vec<Option<FieldElement>>,
+        std::collections::HashMap<u32, usize>,
+    ) {
         let mut witness = vec![None; self.num_witnesses()];
         let mut acir_to_r1cs_public_map = std::collections::HashMap::new();
 
-        let acir_public_inputs_set: std::collections::HashSet<u32> = acir_public_inputs.iter().cloned().collect();
-
+        let acir_public_inputs_set: std::collections::HashSet<u32> =
+            acir_public_inputs.iter().cloned().collect();
 
         for layer in &plan.layers {
             match layer.typ {
                 LayerType::Other => {
                     // Execute regular operations
                     for builder in &layer.witness_builders {
-
                         if let WitnessBuilder::Acir(r1cs_witness_idx, acir_witness_idx) = builder {
                             if acir_public_inputs_set.contains(&(*acir_witness_idx as u32)) {
-                                acir_to_r1cs_public_map.insert(*acir_witness_idx as u32, *r1cs_witness_idx);
+                                acir_to_r1cs_public_map
+                                    .insert(*acir_witness_idx as u32, *r1cs_witness_idx);
                             }
                         }
 

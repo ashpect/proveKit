@@ -59,10 +59,23 @@ impl WhirR1CSVerifier for WhirR1CSScheme {
             whir_query_answer_sum_vectors.1.try_into().unwrap(),
         );
 
-        let statement_verifier = prepare_statement_for_witness_verifier::<3>(
+        let mut statement_verifier = prepare_statement_for_witness_verifier::<3>(
             self.m,
             &parsed_commitment,
             &whir_query_answer_sums,
+        );
+
+        let mut public_inputs_hash_buf = [FieldElement::zero()];
+        arthur.fill_next_scalars(&mut public_inputs_hash_buf)?;
+        let mut public_weights_vector_random_buf = [FieldElement::zero()];
+        arthur.fill_challenge_scalars(&mut public_weights_vector_random_buf)?;
+        let whir_pub_weights_query_answer: (FieldElement, FieldElement) = arthur.hint().unwrap();
+
+        update_statement_for_witness_verifier(
+            self.m,
+            &mut statement_verifier,
+            &parsed_commitment,
+            whir_pub_weights_query_answer,
         );
 
         let (folding_randomness, deferred) = run_whir_pcs_verifier(
@@ -104,6 +117,20 @@ fn prepare_statement_for_witness_verifier<const N: usize>(
         );
     }
     statement_verifier
+}
+
+fn update_statement_for_witness_verifier(
+    m: usize,
+    statement_verifier: &mut Statement<FieldElement>,
+    parsed_commitment: &ParsedCommitment<FieldElement, FieldElement>,
+    whir_public_weights_query_answer: (FieldElement, FieldElement),
+) {
+    let (public_f_sum, public_g_sum) = whir_public_weights_query_answer;
+    let public_weight = Weights::linear(EvaluationsList::new(vec![FieldElement::zero(); 1 << m]));
+    statement_verifier.add_constraint_in_front(
+        public_weight,
+        public_f_sum + public_g_sum * parsed_commitment.batching_randomness,
+    );
 }
 
 #[instrument(skip_all)]

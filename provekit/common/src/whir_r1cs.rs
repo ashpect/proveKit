@@ -33,6 +33,8 @@ impl WhirR1CSScheme {
             .add_zk_sumcheck_polynomials(self.m_0)
             .add_whir_proof(&self.whir_for_hiding_spartan)
             .hint("claimed_evaluations")
+            .add_public_inputs()
+            .hint("public_weights_evaluations")
             .add_whir_proof(&self.whir_witness);
 
         io
