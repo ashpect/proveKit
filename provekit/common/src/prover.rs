@@ -17,7 +17,6 @@ pub struct Prover {
     pub split_witness_builders: Option<SplitWitnessBuilders>,
     pub witness_generator:      Option<NoirWitnessGenerator>,
     pub whir_for_witness:       Option<WhirR1CSScheme>,
-    pub whir_for_w1:            Option<WhirR1CSScheme>,
 }
 
 impl Prover {
@@ -28,7 +27,6 @@ impl Prover {
             split_witness_builders: Some(noir_proof_scheme.split_witness_builders),
             witness_generator:      Some(noir_proof_scheme.witness_generator),
             whir_for_witness:       Some(noir_proof_scheme.whir_for_witness),
-            whir_for_w1:            Some(noir_proof_scheme.whir_for_w1),
         }
     }
 
