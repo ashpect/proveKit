@@ -1,5 +1,8 @@
 use {
-    crate::FieldElement, ark_ff::UniformRand, rayon::prelude::*,
+    crate::FieldElement,
+    ark_ff::{BigInt, UniformRand, PrimeField},
+    rayon::prelude::*,
+    sha2::{Digest, Sha256},
     whir::poly_utils::evals::EvaluationsList,
 };
 
@@ -36,4 +39,25 @@ pub fn generate_random_multilinear_polynomial(num_vars: usize) -> Vec<FieldEleme
     }
 
     elements
+}
+
+/// Hashes public input values.
+///
+/// This function takes public indices and their corresponding witness values,
+/// hashes them using SHA-256, and converts the result to a FieldElement.
+pub fn hash_public_values(public_indices: Vec<usize>, witness: Vec<FieldElement>) -> FieldElement {
+    let mut hasher = Sha256::new();
+    for (_idx, value) in public_indices.iter().zip(witness.iter()) {
+        for limb in value.into_bigint().0.iter() {
+            hasher.update(&limb.to_le_bytes());
+        }
+    }
+    let result = hasher.finalize();
+
+    let limbs = result
+        .chunks_exact(8)
+        .map(|s| u64::from_le_bytes(s.try_into().unwrap()))
+        .collect::<Vec<_>>();
+
+    FieldElement::new(BigInt::new(limbs.try_into().unwrap()))
 }

@@ -67,10 +67,12 @@ impl WhirR1CSVerifier for WhirR1CSScheme {
 
         let mut public_inputs_hash_buf = [FieldElement::zero()];
         arthur.fill_next_scalars(&mut public_inputs_hash_buf)?;
+        // TODO_Ash : Verify the public inputs hash.
+
         let mut public_weights_vector_random_buf = [FieldElement::zero()];
         arthur.fill_challenge_scalars(&mut public_weights_vector_random_buf)?;
-        let whir_pub_weights_query_answer: (FieldElement, FieldElement) = arthur.hint().unwrap();
 
+        let whir_pub_weights_query_answer: (FieldElement, FieldElement) = arthur.hint().unwrap();
         update_statement_for_witness_verifier(
             self.m,
             &mut statement_verifier,

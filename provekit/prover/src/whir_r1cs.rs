@@ -1,6 +1,6 @@
 use {
     anyhow::{ensure, Result},
-    ark_ff::{BigInt, PrimeField, UniformRand},
+    ark_ff::{PrimeField, UniformRand},
     ark_std::{One, Zero},
     provekit_common::{
         skyscraper::{SkyscraperMerkleConfig, SkyscraperSponge},
@@ -11,12 +11,14 @@ use {
                 calculate_external_row_of_r1cs_matrices, calculate_witness_bounds, eval_cubic_poly,
                 sumcheck_fold_map_reduce,
             },
-            zk_utils::{create_masked_polynomial, generate_random_multilinear_polynomial},
+            zk_utils::{
+                create_masked_polynomial, generate_random_multilinear_polynomial,
+                hash_public_values,
+            },
             HALF,
         },
         FieldElement, IOPattern, WhirConfig, WhirR1CSProof, WhirR1CSScheme, R1CS,
     },
-    sha2::{Digest, Sha256},
     spongefish::{
         codecs::arkworks_algebra::{FieldToUnitSerialize, UnitToField},
         ProverState,
@@ -547,23 +549,6 @@ fn get_public_weights(
         public_weights.len(),
         EvaluationsList::new(public_weights),
     )
-}
-
-fn hash_public_values(public_indices: Vec<usize>, witness: Vec<FieldElement>) -> FieldElement {
-    let mut hasher = Sha256::new();
-    for (_idx, value) in public_indices.iter().zip(witness.iter()) {
-        for limb in value.into_bigint().0.iter() {
-            hasher.update(&limb.to_le_bytes());
-        }
-    }
-    let result = hasher.finalize();
-
-    let limbs = result
-        .chunks_exact(8)
-        .map(|s| u64::from_le_bytes(s.try_into().unwrap()))
-        .collect::<Vec<_>>();
-
-    FieldElement::new(BigInt::new(limbs.try_into().unwrap()))
 }
 
 #[instrument(skip_all)]
