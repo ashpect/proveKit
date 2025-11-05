@@ -106,13 +106,13 @@ impl WhirR1CSProver for WhirR1CSScheme {
         let (mut statement, f_sums, g_sums) = create_combined_statement_over_two_polynomials::<3>(
             self.m,
             &commitment_to_witness,
-            masked_polynomial.clone(),
-            random_polynomial.clone(),
+            &masked_polynomial,
+            &random_polynomial,
             alphas,
         );
 
         let _ = merlin.hint::<(Vec<FieldElement>, Vec<FieldElement>)>(&(f_sums, g_sums));
-        // let public_inputs_hash = hash_public_values(public_indices, z);
+
         let public_weight = get_public_weights(z, public_indices, &mut merlin, self.m);
         let (public_f_sum, public_g_sum) = update_statement_with_public_weights(
             &mut statement,
@@ -420,10 +420,13 @@ pub fn run_zk_sumcheck_prover(
         create_combined_statement_over_two_polynomials::<1>(
             blinding_polynomial_variables + 1,
             &commitment_to_blinding_polynomial,
-            blindings_mask_polynomial,
-            blindings_blind_polynomial,
+            &blindings_mask_polynomial,
+            &blindings_blind_polynomial,
             [expand_powers(alpha.as_slice())],
         );
+        
+    drop(blindings_mask_polynomial);
+    drop(blindings_blind_polynomial);
 
     let _ = merlin.add_scalars(&[
         blinding_mask_polynomial_sum[0],
@@ -454,8 +457,8 @@ fn expand_powers(values: &[FieldElement]) -> Vec<FieldElement> {
 fn create_combined_statement_over_two_polynomials<const N: usize>(
     cfg_nv: usize,
     witness: &Witness<FieldElement, SkyscraperMerkleConfig>,
-    f_polynomial: EvaluationsList<FieldElement>,
-    g_polynomial: EvaluationsList<FieldElement>,
+    f_polynomial: &EvaluationsList<FieldElement>,
+    g_polynomial: &EvaluationsList<FieldElement>,
     alphas: [Vec<FieldElement>; N],
 ) -> (
     Statement<FieldElement>,
@@ -485,8 +488,8 @@ fn create_combined_statement_over_two_polynomials<const N: usize>(
         w_full.resize(final_len, FieldElement::zero());
 
         let weight = Weights::linear(EvaluationsList::new(w_full));
-        let f = weight.weighted_sum(&f_polynomial);
-        let g = weight.weighted_sum(&g_polynomial);
+        let f = weight.weighted_sum(f_polynomial);
+        let g = weight.weighted_sum(g_polynomial);
 
         statement.add_constraint(weight, f + witness.batching_randomness * g);
         f_sums.push(f);
@@ -532,15 +535,13 @@ fn get_public_weights(
         .expect("Failed to get challenge from Merlin");
     let x = x_buf[0];
 
+    public_weights[0] = FieldElement::one(); // To handle r1cs's constant '1' witness
     let mut current_pow = x;
     for (idx, _value) in public_input_indices_and_values.iter() {
         public_weights[*idx] = current_pow;
         current_pow *= x;
     }
 
-    // TODO_ASH:
-    // Currently n doesn't make sense as we won't use geometric till, and are
-    // creating [0,x,0,x^2 and so on] and verifying that normally.
     Weights::geometric(
         x,
         public_weights.len(),

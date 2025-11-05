@@ -1,5 +1,6 @@
 #[cfg(test)]
 use anyhow::{ensure, Result};
+use std::collections::{HashMap, HashSet};
 use {
     crate::witness::witness_builder::WitnessBuilderSolver,
     acir::native_types::WitnessMap,
@@ -22,7 +23,7 @@ pub trait R1CSSolver {
         transcript: &mut ProverState<SkyscraperSponge, FieldElement>,
     ) -> (
         Vec<Option<FieldElement>>,
-        std::collections::HashMap<u32, usize>,
+        HashMap<u32, usize>,
     );
 
     #[cfg(test)]
@@ -59,12 +60,12 @@ impl R1CSSolver for R1CS {
         transcript: &mut ProverState<SkyscraperSponge, FieldElement>,
     ) -> (
         Vec<Option<FieldElement>>,
-        std::collections::HashMap<u32, usize>,
+        HashMap<u32, usize>,
     ) {
         let mut witness = vec![None; self.num_witnesses()];
-        let mut acir_to_r1cs_public_map = std::collections::HashMap::new();
+        let mut acir_to_r1cs_public_map = HashMap::new();
 
-        let acir_public_inputs_set: std::collections::HashSet<u32> =
+        let acir_public_inputs_set: HashSet<u32> =
             acir_public_inputs.iter().cloned().collect();
 
         for layer in &plan.layers {

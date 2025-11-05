@@ -97,7 +97,7 @@ impl Prove for Prover {
         
         let (partial_witness, acir_to_r1cs_public_map) =
             self.r1cs.as_ref().unwrap().solve_witness_vec(
-                self.layered_witness_builders.take().unwrap(),
+                layered_witness_builders,
                 acir_witness_idx_to_value_map,
                 &acir_public_inputs,
                 &mut witness_merlin,
