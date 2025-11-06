@@ -6,7 +6,7 @@ mod witness_builder;
 mod witness_generator;
 
 use {
-    crate::{utils::serde_ark, FieldElement},
+    crate::{utils::{serde_ark, serde_ark_vec}, FieldElement},
     ark_ff::{BigInt, One, PrimeField},
     serde::{Deserialize, Serialize},
     sha2::{Digest, Sha256},
@@ -42,7 +42,7 @@ impl ConstantOrR1CSWitness {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PublicInputs(
-    #[serde(with = "serde_ark")]
+    #[serde(with = "serde_ark_vec")]
     pub Vec<FieldElement>,
 );
 
