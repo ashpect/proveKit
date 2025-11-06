@@ -6,6 +6,7 @@ use {
     },
     acir::native_types::WitnessMap,
     anyhow::{Context, Result},
+    ark_ff::One,
     bn254_blackbox_solver::Bn254BlackBoxSolver,
     nargo::foreign_calls::DefaultForeignCallBuilder,
     noir_artifact_cli::fs::inputs::read_inputs_from_file,
@@ -13,11 +14,11 @@ use {
     provekit_common::{
         skyscraper::SkyscraperSponge,
         utils::noir_to_native,
-        witness::{LayeredWitnessBuilders, WitnessBuilder},
+        witness::{LayeredWitnessBuilders, WitnessBuilder, PublicInputs},
         FieldElement, IOPattern, NoirElement, NoirProof, Prover,
     },
     spongefish::{codecs::arkworks_algebra::FieldToUnitSerialize, ProverState},
-    std::path::Path,
+    std::{iter::once, path::Path},
     tracing::instrument,
 };
 
@@ -117,15 +118,18 @@ impl Prove for Prover {
             .test_witness_satisfaction(&witness)
             .context("While verifying R1CS instance")?;
 
+        // Gather public inputs from witness
+        let public_inputs = PublicInputs::from_vec(public_indices.iter().map(|&i| witness[i]).collect::<Vec<FieldElement>>());
+
         // Prove R1CS instance
         let whir_r1cs_proof = self
             .whir_for_witness
             .take()
             .unwrap()
-            .prove(self.r1cs.take().unwrap(), witness, public_indices)
+            .prove(self.r1cs.take().unwrap(), witness, &public_inputs)
             .context("While proving R1CS instance")?;
 
-        Ok(NoirProof { whir_r1cs_proof })
+        Ok(NoirProof { public_inputs, whir_r1cs_proof })
     }
 
     fn create_witness_io_pattern(&self) -> IOPattern {

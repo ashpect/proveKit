@@ -22,6 +22,7 @@ pub use {
     verifier::Verifier,
     whir::crypto::fields::Field256 as FieldElement,
     whir_r1cs::{IOPattern, WhirConfig, WhirR1CSProof, WhirR1CSScheme},
+    witness::PublicInputs,
 };
 
 #[cfg(test)]

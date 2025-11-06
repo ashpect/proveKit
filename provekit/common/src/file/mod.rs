@@ -10,7 +10,7 @@ use {
         counting_writer::CountingWriter,
         json::{read_json, write_json},
     },
-    crate::{NoirProof, NoirProofScheme, Prover, Verifier},
+    crate::{NoirProof, NoirProofScheme, Prover, Verifier, PublicInputs},
     anyhow::Result,
     serde::{Deserialize, Serialize},
     std::{ffi::OsStr, path::Path},

@@ -1,6 +1,6 @@
 use {
     anyhow::{ensure, Result},
-    ark_ff::{PrimeField, UniformRand},
+    ark_ff::UniformRand,
     ark_std::{One, Zero},
     provekit_common::{
         skyscraper::{SkyscraperMerkleConfig, SkyscraperSponge},
@@ -13,11 +13,10 @@ use {
             },
             zk_utils::{
                 create_masked_polynomial, generate_random_multilinear_polynomial,
-                hash_public_values,
             },
             HALF,
         },
-        FieldElement, IOPattern, WhirConfig, WhirR1CSProof, WhirR1CSScheme, R1CS,
+        FieldElement, IOPattern, WhirConfig, WhirR1CSProof, WhirR1CSScheme, R1CS, PublicInputs,
     },
     spongefish::{
         codecs::arkworks_algebra::{FieldToUnitSerialize, UnitToField},
@@ -40,7 +39,7 @@ pub trait WhirR1CSProver {
         &self,
         r1cs: R1CS,
         witness: Vec<FieldElement>,
-        public_indices: Vec<usize>,
+        public_inputs: &PublicInputs,
     ) -> Result<WhirR1CSProof>;
 }
 
@@ -50,7 +49,7 @@ impl WhirR1CSProver for WhirR1CSScheme {
         &self,
         r1cs: R1CS,
         witness: Vec<FieldElement>,
-        public_indices: Vec<usize>,
+        public_inputs: &PublicInputs,
     ) -> Result<WhirR1CSProof> {
         ensure!(
             witness.len() == r1cs.num_witnesses(),
@@ -115,7 +114,7 @@ impl WhirR1CSProver for WhirR1CSScheme {
 
         let _ = merlin.hint::<(Vec<FieldElement>, Vec<FieldElement>)>(&(f_sums, g_sums));
 
-        let public_weight = get_public_weights(z, public_indices, &mut merlin, self.m);
+        let public_weight = get_public_weights(z, public_inputs, &mut merlin, self.m);
         let (public_f_sum, public_g_sum) = update_statement_with_public_weights(
             &mut statement,
             &commitment_to_witness,
@@ -516,32 +515,30 @@ fn update_statement_with_public_weights(
 
 fn get_public_weights(
     witness: Vec<FieldElement>,
-    public_indices: Vec<usize>,
+    public_inputs: &PublicInputs,
     merlin: &mut ProverState<SkyscraperSponge, FieldElement>,
     m: usize,
 ) -> Weights<FieldElement> {
-    let domain_size = 1 << m;
-    let mut public_weights = vec![FieldElement::zero(); domain_size];
 
-    let public_input_indices_and_values: Vec<(usize, FieldElement)> = public_indices
-        .iter()
-        .map(|&idx| (idx, witness[idx]))
-        .collect();
-
-    let public_inputs_hash = hash_public_values(public_indices, witness);
+    // Add hash to transcript
+    let public_inputs_hash = public_inputs.hash();
     let _ = merlin.add_scalars(&[public_inputs_hash]);
 
+    // Get random point x
     let mut x_buf = [FieldElement::zero()];
     merlin
         .fill_challenge_scalars(&mut x_buf)
         .expect("Failed to get challenge from Merlin");
     let x = x_buf[0];
 
-    public_weights[0] = FieldElement::one(); // To handle r1cs's constant '1' witness
-    let mut current_pow = x;
-    for (idx, _value) in public_input_indices_and_values.iter() {
-        public_weights[*idx] = current_pow;
-        current_pow *= x;
+    let domain_size = 1 << m;
+    let mut public_weights = vec![FieldElement::zero(); domain_size];
+
+    // Set public weights for public inputs [1,x,x^2,x^3...x^n-1,0,0,0...0]
+    let mut current_pow = FieldElement::one();
+    for (idx, value) in public_inputs.0.iter().enumerate() {
+        public_weights[idx] = current_pow;
+        current_pow = current_pow * x;
     }
 
     Weights::geometric(

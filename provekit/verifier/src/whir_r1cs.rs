@@ -4,6 +4,7 @@ use {
     provekit_common::{
         skyscraper::SkyscraperSponge,
         utils::sumcheck::{calculate_eq, eval_cubic_poly},
+        witness::PublicInputs,
         FieldElement, WhirConfig, WhirR1CSProof, WhirR1CSScheme,
     },
     spongefish::{
@@ -29,13 +30,13 @@ pub struct DataFromSumcheckVerifier {
 }
 
 pub trait WhirR1CSVerifier {
-    fn verify(&self, proof: &WhirR1CSProof) -> Result<()>;
+    fn verify(&self, proof: &WhirR1CSProof, public_inputs: &PublicInputs) -> Result<()>;
 }
 
 impl WhirR1CSVerifier for WhirR1CSScheme {
     #[instrument(skip_all)]
     #[allow(unused)] // TODO: Fix implementation
-    fn verify(&self, proof: &WhirR1CSProof) -> Result<()> {
+    fn verify(&self, proof: &WhirR1CSProof, public_inputs: &PublicInputs) -> Result<()> {
         // Set up transcript
         let io = self.create_io_pattern();
         let mut arthur = io.to_verifier_state(&proof.transcript);
@@ -67,7 +68,13 @@ impl WhirR1CSVerifier for WhirR1CSScheme {
 
         let mut public_inputs_hash_buf = [FieldElement::zero()];
         arthur.fill_next_scalars(&mut public_inputs_hash_buf)?;
-        // TODO_Ash : Verify the public inputs hash.
+                let expected_public_inputs_hash = public_inputs.hash();
+        ensure!(
+            public_inputs_hash_buf[0] == expected_public_inputs_hash,
+            "Public inputs hash mismatch: expected {:?}, got {:?}",
+            expected_public_inputs_hash,
+            public_inputs_hash_buf[0]
+        );
 
         let mut public_weights_vector_random_buf = [FieldElement::zero()];
         arthur.fill_challenge_scalars(&mut public_weights_vector_random_buf)?;
