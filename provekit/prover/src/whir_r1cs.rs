@@ -540,7 +540,7 @@ fn get_public_weights(
 
     Weights::geometric(
         x,
-        public_weights.len(),
+        public_inputs.0.len(),
         EvaluationsList::new(public_weights),
     )
 }
