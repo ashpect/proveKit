@@ -14,7 +14,7 @@ use {
     provekit_common::{
         skyscraper::SkyscraperSponge,
         utils::noir_to_native,
-        witness::{LayeredWitnessBuilders, WitnessBuilder, PublicInputs},
+        witness::{LayeredWitnessBuilders, PublicInputs, WitnessBuilder},
         FieldElement, IOPattern, NoirElement, NoirProof, Prover,
     },
     spongefish::{codecs::arkworks_algebra::FieldToUnitSerialize, ProverState},
@@ -95,7 +95,7 @@ impl Prove for Prover {
         let mut all_layers = split_witness_builders.w1_layers.layers;
         all_layers.extend(split_witness_builders.w2_layers.layers);
         let layered_witness_builders = LayeredWitnessBuilders { layers: all_layers };
-        
+
         let (partial_witness, acir_to_r1cs_public_map) =
             self.r1cs.as_ref().unwrap().solve_witness_vec(
                 layered_witness_builders,
@@ -119,7 +119,12 @@ impl Prove for Prover {
             .context("While verifying R1CS instance")?;
 
         // Gather public inputs from witness
-        let public_inputs = PublicInputs::from_vec(public_indices.iter().map(|&i| witness[i]).collect::<Vec<FieldElement>>());
+        let public_inputs = PublicInputs::from_vec(
+            public_indices
+                .iter()
+                .map(|&i| witness[i])
+                .collect::<Vec<FieldElement>>(),
+        );
 
         // Prove R1CS instance
         let whir_r1cs_proof = self
@@ -129,7 +134,10 @@ impl Prove for Prover {
             .prove(self.r1cs.take().unwrap(), witness, &public_inputs)
             .context("While proving R1CS instance")?;
 
-        Ok(NoirProof { public_inputs, whir_r1cs_proof })
+        Ok(NoirProof {
+            public_inputs,
+            whir_r1cs_proof,
+        })
     }
 
     fn create_witness_io_pattern(&self) -> IOPattern {

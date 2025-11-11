@@ -1,6 +1,5 @@
 #[cfg(test)]
 use anyhow::{ensure, Result};
-use std::collections::{HashMap, HashSet};
 use {
     crate::witness::witness_builder::WitnessBuilderSolver,
     acir::native_types::WitnessMap,
@@ -11,6 +10,7 @@ use {
         FieldElement, NoirElement, R1CS,
     },
     spongefish::ProverState,
+    std::collections::{HashMap, HashSet},
     tracing::instrument,
 };
 
@@ -21,10 +21,7 @@ pub trait R1CSSolver {
         acir_map: WitnessMap<NoirElement>,
         acir_public_inputs: &[u32],
         transcript: &mut ProverState<SkyscraperSponge, FieldElement>,
-    ) -> (
-        Vec<Option<FieldElement>>,
-        HashMap<u32, usize>,
-    );
+    ) -> (Vec<Option<FieldElement>>, HashMap<u32, usize>);
 
     #[cfg(test)]
     fn test_witness_satisfaction(&self, witness: &[FieldElement]) -> Result<()>;
@@ -58,15 +55,11 @@ impl R1CSSolver for R1CS {
         acir_map: WitnessMap<NoirElement>,
         acir_public_inputs: &[u32],
         transcript: &mut ProverState<SkyscraperSponge, FieldElement>,
-    ) -> (
-        Vec<Option<FieldElement>>,
-        HashMap<u32, usize>,
-    ) {
+    ) -> (Vec<Option<FieldElement>>, HashMap<u32, usize>) {
         let mut witness = vec![None; self.num_witnesses()];
         let mut acir_to_r1cs_public_map = HashMap::new();
 
-        let acir_public_inputs_set: HashSet<u32> =
-            acir_public_inputs.iter().cloned().collect();
+        let acir_public_inputs_set: HashSet<u32> = acir_public_inputs.iter().cloned().collect();
 
         for layer in &plan.layers {
             match layer.typ {

@@ -62,11 +62,17 @@ impl NoirProofSchemeBuilder for NoirProofScheme {
         );
 
         // Extract ACIR public input indices set
-        let acir_public_inputs_indices_set: HashSet<u32> = main.public_inputs().indices().iter().cloned().collect();
+        let acir_public_inputs_indices_set: HashSet<u32> =
+            main.public_inputs().indices().iter().cloned().collect();
 
         // Split witness builders and remap indices for sound challenge generation
         let (split_witness_builders, remapped_r1cs, remapped_witness_map) =
-            WitnessBuilder::split_and_prepare_layers(&witness_builders, r1cs, witness_map, acir_public_inputs_indices_set);
+            WitnessBuilder::split_and_prepare_layers(
+                &witness_builders,
+                r1cs,
+                witness_map,
+                acir_public_inputs_indices_set,
+            );
         info!(
             "Witness split: w1 size = {}, w2 size = {}",
             split_witness_builders.w1_size,

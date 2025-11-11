@@ -20,7 +20,7 @@ pub struct NoirProofScheme {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NoirProof {
-    pub public_inputs: PublicInputs,
+    pub public_inputs:   PublicInputs,
     pub whir_r1cs_proof: WhirR1CSProof,
 }
 

@@ -11,12 +11,10 @@ use {
                 calculate_external_row_of_r1cs_matrices, calculate_witness_bounds, eval_cubic_poly,
                 sumcheck_fold_map_reduce,
             },
-            zk_utils::{
-                create_masked_polynomial, generate_random_multilinear_polynomial,
-            },
+            zk_utils::{create_masked_polynomial, generate_random_multilinear_polynomial},
             HALF,
         },
-        FieldElement, IOPattern, WhirConfig, WhirR1CSProof, WhirR1CSScheme, R1CS, PublicInputs,
+        FieldElement, IOPattern, PublicInputs, WhirConfig, WhirR1CSProof, WhirR1CSScheme, R1CS,
     },
     spongefish::{
         codecs::arkworks_algebra::{FieldToUnitSerialize, UnitToField},
@@ -425,7 +423,7 @@ pub fn run_zk_sumcheck_prover(
             &blindings_blind_polynomial,
             [expand_powers(alpha.as_slice())],
         );
-        
+
     drop(blindings_mask_polynomial);
     drop(blindings_blind_polynomial);
 
@@ -519,7 +517,6 @@ fn get_public_weights(
     merlin: &mut ProverState<SkyscraperSponge, FieldElement>,
     m: usize,
 ) -> Weights<FieldElement> {
-
     // Add hash to transcript
     let public_inputs_hash = public_inputs.hash();
     let _ = merlin.add_scalars(&[public_inputs_hash]);

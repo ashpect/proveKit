@@ -68,7 +68,7 @@ impl WhirR1CSVerifier for WhirR1CSScheme {
 
         let mut public_inputs_hash_buf = [FieldElement::zero()];
         arthur.fill_next_scalars(&mut public_inputs_hash_buf)?;
-                let expected_public_inputs_hash = public_inputs.hash();
+        let expected_public_inputs_hash = public_inputs.hash();
         ensure!(
             public_inputs_hash_buf[0] == expected_public_inputs_hash,
             "Public inputs hash mismatch: expected {:?}, got {:?}",

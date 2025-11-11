@@ -1,7 +1,5 @@
 use {
-    crate::FieldElement,
-    ark_ff::UniformRand,
-    rayon::prelude::*,
+    crate::FieldElement, ark_ff::UniformRand, rayon::prelude::*,
     whir::poly_utils::evals::EvaluationsList,
 };
 

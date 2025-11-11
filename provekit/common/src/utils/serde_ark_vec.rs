@@ -57,8 +57,8 @@ where
             let mut vec = Vec::new();
             if self.is_human_readable {
                 while let Some(hex) = seq.next_element::<String>()? {
-                    let bytes =
-                        hex::decode(hex).map_err(|e| A::Error::custom(format!("invalid hex: {e}")))?;
+                    let bytes = hex::decode(hex)
+                        .map_err(|e| A::Error::custom(format!("invalid hex: {e}")))?;
                     let mut reader = &*bytes;
                     let element = FieldElement::deserialize_compressed(&mut reader)
                         .map_err(|e| A::Error::custom(format!("deserialize failed: {e}")))?;
@@ -85,4 +85,3 @@ where
     let is_human_readable = deserializer.is_human_readable();
     deserializer.deserialize_seq(VecVisitor { is_human_readable })
 }
-

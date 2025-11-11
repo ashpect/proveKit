@@ -26,7 +26,10 @@ impl<'a> WitnessSplitter<'a> {
     /// (post-challenge).
     ///
     /// Returns (w1_builder_indices, w2_builder_indices)
-    pub fn split_builders(&self, acir_public_inputs_indices_set: HashSet<u32>) -> (Vec<usize>, Vec<usize>) {
+    pub fn split_builders(
+        &self,
+        acir_public_inputs_indices_set: HashSet<u32>,
+    ) -> (Vec<usize>, Vec<usize>) {
         let builder_count = self.witness_builders.len();
 
         // Step 1: Find all Challenge builders
@@ -40,7 +43,10 @@ impl<'a> WitnessSplitter<'a> {
             .collect();
 
         if challenge_builders.is_empty() {
-            let w1_indices = self.rearrange_w1((0..builder_count).collect(), &acir_public_inputs_indices_set);
+            let w1_indices = self.rearrange_w1(
+                (0..builder_count).collect(),
+                &acir_public_inputs_indices_set,
+            );
             return (w1_indices, Vec::new());
         }
 
@@ -129,7 +135,8 @@ impl<'a> WitnessSplitter<'a> {
             .map(|&idx| DependencyInfo::extract_writes(&self.witness_builders[idx]).len())
             .sum();
 
-        // Step 7: Greedy balancing - assign free builders to smaller side (with the exception of public builders writing public witnesses)
+        // Step 7: Greedy balancing - assign free builders to smaller side (with the
+        // exception of public builders writing public witnesses)
         let mut w1_set = mandatory_w1;
         let mut w2_set = mandatory_w2;
 
@@ -165,7 +172,8 @@ impl<'a> WitnessSplitter<'a> {
         (w1_indices, w2_indices)
     }
 
-    /// Rearranges w1 indices: constant builder (0) first, then public inputs, then rest.
+    /// Rearranges w1 indices: constant builder (0) first, then public inputs,
+    /// then rest.
     fn rearrange_w1(
         &self,
         w1_indices: Vec<usize>,
@@ -174,13 +182,14 @@ impl<'a> WitnessSplitter<'a> {
         let mut public_input_builder_indices = Vec::new();
         let mut rest_indices = Vec::new();
 
-        // Sanity Check: Make sure all public inputs and WITNESS_ONE_IDX are in w1_indices.
+        // Sanity Check: Make sure all public inputs and WITNESS_ONE_IDX are in
+        // w1_indices.
         for &idx in acir_public_inputs_indices_set.iter() {
             if !w1_indices.contains(&(idx as usize)) {
                 panic!("Public input {} is not in w1_indices", idx);
             }
         }
-        
+
         // Separate into: 0, public inputs, and rest
         for builder_idx in w1_indices {
             if builder_idx == 0 {
@@ -196,7 +205,7 @@ impl<'a> WitnessSplitter<'a> {
 
         public_input_builder_indices.sort_unstable();
         rest_indices.sort_unstable();
-        
+
         // Reorder: 0 first, then public inputs, then rest
         let mut new_w1_indices = vec![0];
         new_w1_indices.extend(public_input_builder_indices);
