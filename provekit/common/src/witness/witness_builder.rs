@@ -9,12 +9,12 @@ use {
                 LayerScheduler, LayeredWitnessBuilders, SplitWitnessBuilders, WitnessIndexRemapper,
                 WitnessSplitter,
             },
-            ConstantOrR1CSWitness,
+            ConstantOrR1CSWitness, WITNESS_ONE_IDX,
         },
         FieldElement, R1CS,
     },
     serde::{Deserialize, Serialize},
-    std::num::NonZeroU32,
+    std::{collections::HashSet, num::NonZeroU32},
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -165,8 +165,9 @@ impl WitnessBuilder {
     /// 1. Split builders: w1 = transitive deps of lookups, w2 = challenges +
     ///    dependents
     /// 2. Remap witness indices: w1 → [0, k), w2 → [k, n)
-    /// 3. Remap R1CS matrices and ACIR witness map
-    /// 4. Schedule both groups with batch inversions
+    /// 3. Reorder w1 builders: 0, public inputs, then others
+    /// 4. Remap R1CS matrices and ACIR witness map
+    /// 5. Schedule both groups with batch inversions
     ///
     /// Returns (SplitWitnessBuilders, remapped R1CS, remapped witness
     /// map)
@@ -174,6 +175,7 @@ impl WitnessBuilder {
         witness_builders: &[WitnessBuilder],
         r1cs: R1CS,
         witness_map: Vec<Option<NonZeroU32>>,
+        acir_public_inputs_indices_set: HashSet<u32>,
     ) -> (SplitWitnessBuilders, R1CS, Vec<Option<NonZeroU32>>) {
         if witness_builders.is_empty() {
             return (
@@ -189,7 +191,7 @@ impl WitnessBuilder {
 
         // Step 1: Analyze dependencies and split into w1/w2
         let splitter = WitnessSplitter::new(witness_builders);
-        let (w1_indices, w2_indices) = splitter.split_builders();
+        let (w1_indices, w2_indices) = splitter.split_builders(acir_public_inputs_indices_set);
 
         // Step 2: Extract w1 and w2 builders in order
         let w1_builders: Vec<WitnessBuilder> = w1_indices
